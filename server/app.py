@@ -37,6 +37,12 @@ def register():
     try:
         conn = db.connect()
         cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username));
+        rows= cursor.fetchall()
+        if(len(rows)==1):
+            cursor.close()
+            conn.close()
+            return "This username is already taken. Please choose a different username.", 400
         cursor.execute("INSERT INTO Users (Username, PasswordHash) VALUES (%s,%s)",(username, theHashedPassword))
         conn.commit()
         cursor.close()
@@ -105,6 +111,7 @@ def verify_token():
         if(len(rows)!=0):
             response = make_response("Token is blacklisted")
             response.status_code=401
+            response.set_cookie('theJSONWebToken', '', expires=0)
             cursor.close()
             conn.close()
             return response
@@ -118,6 +125,49 @@ def verify_token():
             print(decodingTokenException)
             cursor.close()
             conn.close()
+            response = make_response("Token is invalid")
+            response.status_code=401
+            response.set_cookie('theJSONWebToken', '', expires=0)
+            return response
+    except Exception as ServerException:
+        if(cursor):
+            cursor.close()
+        if(conn):
+            conn.close()
+        print(ServerException)
+        return "Internal Server Error", 500
+@app.route('/logout', methods=['POST'])
+def logout():
+    theToken=request.cookies.get("theJSONWebToken")
+    if(theToken is None):
+        response = make_response("No token provided")
+        response.status_code=401
+        return response
+    conn=None
+    cursor=None
+    try:
+        conn = db.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken))
+        rows= cursor.fetchall()
+        if(len(rows)!=0):
+            response = make_response("Succesfully Logged Out")
+            cursor.close()
+            conn.close()
+            return response
+        try:
+            jwt.decode(theToken, secretKey, algorithms="HS256")
+            cursor.execute("INSERT INTO BlacklistedTokens (Token) VALUES (%s)",(theToken))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            response= make_response("Successfully Logged Out")
+            response.set_cookie('theJSONWebToken', '', expires=0)
+            return response
+        except Exception as decodingTokenException:
+            print(decodingTokenException)
+            cursor.close()
+            conn.close()
             return "Token is invalid", 401
     except Exception as ServerException:
         if(cursor):
@@ -126,17 +176,6 @@ def verify_token():
             conn.close()
         print(ServerException)
         return "Internal Server Error", 500
-
-        
-
-    
-    
-    
-
-
-
-
-
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

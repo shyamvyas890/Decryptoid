@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from '../utils/AxiosWithCredentials';
-import { hostname } from '../utils/utils';
+import axios from '../utils/AxiosWithCredentials.ts';
+import { hostname } from '../utils/utils.ts';
 const LoginComponent = () => {
   const [feedback, setFeedback]= useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -29,7 +29,7 @@ const LoginComponent = () => {
       try{
           const response= await axios.get(`${hostname}/verify-token`)
           console.log(response);
-          setUsername(response.data.username)
+          setUsername(response.data.Username)
           setIsLoggedIn(true);
       }
       catch(error){
