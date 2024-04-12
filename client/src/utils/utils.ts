@@ -1,6 +1,6 @@
-import axios from "./AxiosWithCredentials.js";
+import axios from "./AxiosWithCredentials.ts";
 const hostname= "http://localhost:5001";
-const axiosRequest = async (reqNum, inputType, pathname, theInput )=>{ // reqNum = POST =1 DELETE = 2 GET = 3 PUT = 4   inputType = Body= 1 Query = 2 (doesnt cover params input)     
+const axiosRequest = async (reqNum: 1 | 2 | 3 | 4, inputType: 1 | 2, pathname: string, theInput: Record<any,any>)=>{ // reqNum = POST =1 DELETE = 2 GET = 3 PUT = 4   inputType = Body= 1 Query = 2 (doesnt cover params input)     
     let response;
     if(reqNum===1){
         if(inputType === 1){
@@ -27,5 +27,4 @@ const axiosRequest = async (reqNum, inputType, pathname, theInput )=>{ // reqNum
     }
     return response;
 }
-
 export {axiosRequest, hostname};
