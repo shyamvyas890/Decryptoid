@@ -5,6 +5,7 @@ import jwt
 import datetime
 from datetime import timezone
 from flask_cors import CORS
+import math
 
 app = Flask(__name__)
 CORS(app, origins="http://localhost:3000", supports_credentials=True)
@@ -37,7 +38,7 @@ def register():
     try:
         conn = db.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username));
+        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username,));
         rows= cursor.fetchall()
         if(len(rows)==1):
             cursor.close()
@@ -68,7 +69,7 @@ def login():
     try:
         conn = db.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username))
+        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username,))
         rows= cursor.fetchall()
         cursor.close()
         conn.close()
@@ -106,7 +107,7 @@ def verify_token():
     try:
         conn = db.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken))
+        cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
         rows= cursor.fetchall()
         if(len(rows)!=0):
             response = make_response("Token is blacklisted")
@@ -148,7 +149,7 @@ def logout():
     try:
         conn = db.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken))
+        cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
         rows= cursor.fetchall()
         if(len(rows)!=0):
             response = make_response("Succesfully Logged Out")
@@ -157,7 +158,7 @@ def logout():
             return response
         try:
             jwt.decode(theToken, secretKey, algorithms="HS256")
-            cursor.execute("INSERT INTO BlacklistedTokens (Token) VALUES (%s)",(theToken))
+            cursor.execute("INSERT INTO BlacklistedTokens (Token) VALUES (%s)",(theToken,))
             conn.commit()
             cursor.close()
             conn.close()
@@ -176,6 +177,189 @@ def logout():
             conn.close()
         print(ServerException)
         return "Internal Server Error", 500
+@app.route('/substitution', methods=['POST'])
+def substitionEncrypt():
+    file_contents=None
+    if('encrypt' not in request.form):
+        return "Must include encryption information", 400
+    encrypt = True if request.form['encrypt']=="true" else False
+    if('file' in request.files):
+        uploaded_file = request.files['file']
+        if(not uploaded_file.filename.lower().endswith('.txt')):
+            return "Only txt files are accepted, sorry", 400
+        file_contents = uploaded_file.read().decode('utf-8')
+    elif ('file' in request.form):
+        file_contents= request.form['file']
+    else:
+        return 'You have to include some content you want to encrypt', 400
+    if 'cipher' not in request.form:
+        return "No cipher provided", 400
+    cipherContents = request.form['cipher'].split("-->")
+    if(len(cipherContents[0]) != len(cipherContents[1])):
+        return "Cipher is corrupted", 400
+    cipherContent1 = [char for char in cipherContents[0]]
+    cipherContent2 = [char for char in cipherContents[1]]
+    theEncryptedContent =""
+    try:
+        for char in file_contents:
+            if char == " ":
+                theEncryptedContent += " "
+                continue
+            if (encrypt):
+                index = cipherContent1.index(char)
+                theEncryptedContent += cipherContent2[index]
+            else:
+                index = cipherContent2.index(char)
+                theEncryptedContent += cipherContent1[index]
+    except Exception as e:
+        print(e)
+        return "Your file can only contain lowercase english letters and spaces.", 400
+    try:
+        UserId = None
+        conn = db.connect()
+        cursor = conn.cursor()
+        try:
+            theToken=request.cookies.get("theJSONWebToken")
+            cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+            rows= cursor.fetchall()
+            if(len(rows)==0):
+                decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                UserId = decodedToken.get('UserId')  
+        except Exception as decodingTokenException:
+            print(decodingTokenException)
+        cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "substitution", UserId))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return theEncryptedContent,200
+    except Exception as e:
+        print(e)
+        return "Internal Server Error", 500
+def swap(the2DArray, rowOrColumn, index1, index2):
+    if(rowOrColumn == "row"):
+        temp = [char for char in the2DArray[index1]]
+        for i in range(len(the2DArray[index2])):
+            the2DArray[index1][i] = the2DArray[index2][i]
+        for i in range(len(temp)):
+            the2DArray[index2][i] = temp[i]
+    elif (rowOrColumn == "column"):
+        temp = []
+        for i in range(len(the2DArray)):
+            temp.append(the2DArray[i][index1])
+        for i in range(len(the2DArray)):
+            the2DArray[i][index1] = the2DArray[i][index2]
+        for i in range(len(the2DArray)):
+            the2DArray[i][index2] = temp[i]
+
+@app.route('/doubleTransposition', methods=['POST'])
+def doubleTranspositionEncrypt():
+    file_contents=None
+    numberOfCharactersInOriginalMessageIfDecrypt=None
+    if('encrypt' not in request.form):
+        return "Must include encryption information", 400
+    encrypt = True if request.form['encrypt']=="true" else False
+    if(not encrypt):
+        if('numberOfCharactersInOriginalMessage' not in request.form):
+            return "You must return the number of characters originally in the message if you want to decrypt with this cipher", 400
+        numberOfCharactersInOriginalMessageIfDecrypt = int(request.form['numberOfCharactersInOriginalMessage'])
+    if('file' in request.files):
+        uploaded_file = request.files['file']
+        if(not uploaded_file.filename.lower().endswith('.txt')):
+            return "Only txt files are accepted, sorry", 400
+        file_contents = uploaded_file.read().decode('utf-8')
+    elif ('file' in request.form):
+        file_contents= request.form['file']
+    else:
+        return 'You have to include some content you want to encrypt', 400
+    if 'cipher' not in request.form:
+        return "No cipher provided", 400
+    cipherContents = request.form['cipher'] # alternateConsecutive
+    theEncryptedContent =""
+    columns = math.ceil(math.sqrt(len(file_contents)))
+    rows= columns
+    while (rows*columns>=len(file_contents)):
+        if((rows-1)*columns >= len(file_contents)):
+            rows-=1
+        else:
+            break
+    transpositionMatrix = [["e"]*columns for _ in range(rows)]
+    characterOneAtATime = [char for char in file_contents]
+    characterOneAtATimeIndexCounter = 0
+    for i in range(rows):
+        for j in range(columns):
+            if (characterOneAtATimeIndexCounter >= len(characterOneAtATime)):
+                continue
+            else:
+                transpositionMatrix[i][j] = characterOneAtATime[characterOneAtATimeIndexCounter]
+                characterOneAtATimeIndexCounter+=1
+    
+    if (encrypt):
+        if(cipherContents == "alternateConsecutive"):
+            lastColumn = columns if columns%2==0 else columns-1
+            lastRow = rows if rows%2==0 else rows-1
+            for i in range(0,lastColumn, 2):
+                swap(transpositionMatrix, "column", i, i+1)
+            for i in range(0, lastRow, 2):
+                swap(transpositionMatrix, "row", i, i+1)
+        for i in range(len(transpositionMatrix)):
+            for j in range(len(transpositionMatrix[i])):
+                theEncryptedContent += transpositionMatrix[i][j]
+        try:
+            UserId = None
+            conn = db.connect()
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "double transposition", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return jsonify({"theEncryptedContent":theEncryptedContent, "length": len(file_contents)}), 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
+    else:
+        if(cipherContents == "alternateConsecutive"):
+            lastColumn = columns if columns%2==0 else columns-1
+            lastRow = rows if rows%2==0 else rows-1
+            for i in range(0, lastRow, 2):
+                swap(transpositionMatrix, "row", i, i+1)
+            for i in range(0,lastColumn, 2):
+                swap(transpositionMatrix, "column", i, i+1)
+        decryptionCounter = 0
+        for i in range(len(transpositionMatrix)):
+            for j in range(len(transpositionMatrix[i])):
+                if(decryptionCounter<numberOfCharactersInOriginalMessageIfDecrypt):
+                    theEncryptedContent += transpositionMatrix[i][j]
+                    decryptionCounter+=1
+        try:
+            UserId = None
+            conn = db.connect()
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "double transposition", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return theEncryptedContent, 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
