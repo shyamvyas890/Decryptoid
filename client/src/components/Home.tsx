@@ -3,6 +3,7 @@ import axios from "../utils/AxiosWithCredentials.ts";
 import { hostname } from "../utils/utils.ts";
 const HomeComponent = ()=>{
     const [cipherNum, setCipherNum]= React.useState< 1 | 2 | 3 | null>(null); // 1 is substitution cipher, 2 is double transposition, and 3 is Rc4
+    // Add 4 for DES
     const [isFile, setIsFile] = React.useState<boolean | null>(null);
     const [encrypt, setEncrypt] = React.useState<boolean | null>(null);
     //qwertyuiopasdfghjklzxcvbnm-->cjkqmoxwbdrinuvplzsehgytaf
