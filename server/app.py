@@ -12,7 +12,7 @@ CORS(app, origins="http://localhost:3000", supports_credentials=True)
 
 app.config['MYSQL_DATABASE_HOST'] = 'localhost' 
 app.config['MYSQL_DATABASE_USER'] = 'root' 
-app.config['MYSQL_DATABASE_PASSWORD'] = 'password'  
+app.config['MYSQL_DATABASE_PASSWORD'] = 'root'  
 app.config['MYSQL_DATABASE_DB'] = 'Decryptoid'
 secretKey = "secretKey" # will change later
 
@@ -360,6 +360,6 @@ def doubleTranspositionEncrypt():
         except Exception as e:
             print(e)
             return "Internal Server Error", 500
-
+        
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
