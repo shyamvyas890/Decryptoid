@@ -395,14 +395,14 @@ def rc4Encrypt():
         return "No cipher provided", 400
     #--------------------------------------------
     cipherContents = request.form['cipher'] # RC4
-    theEncryptedContent ="" # the ciphertext
+    theEncryptedContent = ""
    
-
+    # CANNOT ENCODE IT BRICKS
+    rc4key.encode()
     
     if (encrypt):
         if(cipherContents == "RC4"):
-            #print(rc4(new_string, kee))
-            theEncryptedContent += "ABC" 
+            theEncryptedContent += "ABC" + rc4key.encode()
             
         try:
             UserId = None
