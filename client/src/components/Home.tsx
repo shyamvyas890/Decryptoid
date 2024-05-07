@@ -47,6 +47,9 @@ const HomeComponent = ()=>{
         if(encrypt === false && cipherNum === 2){
             theData.append('numberOfCharactersInOriginalMessage', event.target.elements.numberOfCharactersInOriginalMessage.value)
         }
+        if(cipherNum === 3) {
+            theData.append('rc4key', event.target.elements.rc4key.value)
+        }
         if(cipherNum === 1){
             try{
                 const response = await axios.post(`${hostname}/substitution`, theData, {
@@ -64,6 +67,20 @@ const HomeComponent = ()=>{
         else if(cipherNum === 2) {
             try{
                 const response = await axios.post(`${hostname}/doubleTransposition`, theData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                console.log(response.data);
+            }
+            catch(error){
+                console.log(error)
+            }
+        }
+        // ADD RC4
+        else if(cipherNum === 3) {
+            try{
+                const response = await axios.post(`${hostname}/RC4`, theData, {
                     headers: {
                         'Content-Type': 'multipart/form-data'
                     }
@@ -124,6 +141,15 @@ const HomeComponent = ()=>{
                         <option value={"alternateConsecutive"}>Alternate Consecutive</option>
                     </select>
                     {encrypt===false && <label>How many characters was in the original message?<input type="text" name="numberOfCharactersInOriginalMessage"/></label>}
+                    <button type="submit">Submit</button>
+                </>)}
+                {isFile!==null && cipherNum===3 && encrypt!==null && (<>
+                    <label>Select the cipher you want to use</label>
+                    <select onChange = {handleChooseCipher} value={theCipher===null? "Select": theCipher}>
+                        <option value={"Select"}>Select</option>
+                        <option value={"RC4"}>RC4</option>
+                    </select>  
+                    <label>What key do you want to use?<input type="text" name="rc4key"/></label>
                     <button type="submit">Submit</button>
                 </>)}
             </form>

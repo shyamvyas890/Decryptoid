@@ -12,7 +12,7 @@ CORS(app, origins="http://localhost:3000", supports_credentials=True)
 
 app.config['MYSQL_DATABASE_HOST'] = 'localhost' 
 app.config['MYSQL_DATABASE_USER'] = 'root' 
-app.config['MYSQL_DATABASE_PASSWORD'] = 'root'  
+app.config['MYSQL_DATABASE_PASSWORD'] = 'password' # root for windows   
 app.config['MYSQL_DATABASE_DB'] = 'Decryptoid'
 secretKey = "secretKey" # will change later
 
@@ -177,6 +177,7 @@ def logout():
             conn.close()
         print(ServerException)
         return "Internal Server Error", 500
+    
 @app.route('/substitution', methods=['POST'])
 def substitionEncrypt():
     file_contents=None
@@ -235,6 +236,7 @@ def substitionEncrypt():
     except Exception as e:
         print(e)
         return "Internal Server Error", 500
+    
 def swap(the2DArray, rowOrColumn, index1, index2):
     if(rowOrColumn == "row"):
         temp = [char for char in the2DArray[index1]]
@@ -361,5 +363,141 @@ def doubleTranspositionEncrypt():
             print(e)
             return "Internal Server Error", 500
         
+
+
+@app.route('/RC4', methods=['POST'])
+def rc4Encrypt():
+    file_contents=None
+    rc4key=None
+    if('encrypt' not in request.form):
+        return "Must include encryption information", 400
+    encrypt = True if request.form['encrypt']=="true" else False
+    if(not encrypt):
+        if('rc4key' not in request.form):
+            return "Must include key for decryption", 400
+        rc4key = str(request.form['rc4key'])
+    if(encrypt):
+        if('rc4key' not in request.form):
+            return "Must include key for encryption", 400
+        rc4key = str(request.form['rc4key'])
+
+    if('file' in request.files):
+        uploaded_file = request.files['file']
+        if(not uploaded_file.filename.lower().endswith('.txt')):
+            return "Only txt files are accepted, sorry", 400
+        file_contents = uploaded_file.read().decode('utf-8')
+    elif ('file' in request.form):
+        file_contents= request.form['file']
+
+    else:
+        return 'You have to include some content you want to encrypt', 400
+    if 'cipher' not in request.form:
+        return "No cipher provided", 400
+    #--------------------------------------------
+    cipherContents = request.form['cipher'] # RC4
+    theEncryptedContent ="" # the ciphertext
+   
+
+    
+    if (encrypt):
+        if(cipherContents == "RC4"):
+            #print(rc4(new_string, kee))
+            theEncryptedContent += "ABC" 
+            
+        try:
+            UserId = None
+            conn = db.connect()
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "RC4", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return jsonify({"theEncryptedContent":theEncryptedContent, "length": len(file_contents)}), 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
+    else: # DECRYPTT
+        if(cipherContents == "RC4"):
+            theEncryptedContent = "DECRYPT" + rc4key 
+        try:
+            UserId = None
+            conn = db.connect()
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "RC4", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return theEncryptedContent, 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
+        
+
+
+
+
+# -------------------------------------------------------- RC4 -----------------------------------------
+
+
+
+
+
+
+
+
+
+def keySchedule(key):
+    S = list(range(256)) # list of 256 bytes
+    j = 0
+    for i in range(256):
+        j = (j + S[i] + key[i % len(key)]) % 256
+        S[i], S[j] = S[j], S[i] #swap
+    return S
+
+def rc4(data, key):
+    key_bytes = bytearray(key)  # Convert key string to bytes
+    S = keySchedule(key_bytes)
+    i = j = 0                   #P RGA
+    encrypted_data = bytearray()
+    for byte in data:
+        i = (i + 1) % 256
+        j = (j + S[i]) % 256
+        S[i], S[j] = S[j], S[i]
+        K = S[(S[i] + S[j]) % 256]
+        encrypted_data.append(byte ^ K)
+    return encrypted_data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
