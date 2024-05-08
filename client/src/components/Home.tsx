@@ -2,19 +2,16 @@ import React from "react";
 import axios from "../utils/AxiosWithCredentials.ts";
 import { hostname } from "../utils/utils.ts";
 const HomeComponent = ()=>{
-    const [cipherNum, setCipherNum]= React.useState< 1 | 2 | 3 | null>(null); // 1 is substitution cipher, 2 is double transposition, and 3 is Rc4
-    // Add 4 for DES
+    const [cipherNum, setCipherNum]= React.useState< 1 | 2 | 3 | 4 | null>(null); // 1 is substitution cipher, 2 is double transposition, 3 is Rc4, 4 is DES
     const [isFile, setIsFile] = React.useState<boolean | null>(null);
     const [encrypt, setEncrypt] = React.useState<boolean | null>(null);
-    //qwertyuiopasdfghjklzxcvbnm-->cjkqmoxwbdrinuvplzsehgytaf
-    //qwertyuiopasdfghjklzxcvbnm-->qazwsxedcrfvtgbyhnujmikolp
     const [theCipher, setTheCipher] = React.useState<string | null>(null);
     const handleChooseEncryptionMethod = (event)=>{
         if(event.target.value === "0"){
             setCipherNum(null);
         }
         else{
-            const cipher: 1 | 2 | 3= parseInt(event.target.value) as 1 | 2 | 3;
+            const cipher: 1 | 2 | 3 |4= parseInt(event.target.value) as 1 | 2 | 3 | 4;
             setCipherNum(cipher);
         }
     }
@@ -49,6 +46,9 @@ const HomeComponent = ()=>{
         }
         if(cipherNum === 3) {
             theData.append('rc4key', event.target.elements.rc4key.value)
+        }
+        if(cipherNum === 4) {
+            theData.append('desKey', event.target.elements.desKey.value)
         }
         if(cipherNum === 1){
             try{
@@ -92,6 +92,20 @@ const HomeComponent = ()=>{
             }
         }
 
+        else if(cipherNum === 4) {
+            try{
+                const response = await axios.post(`${hostname}/DES`, theData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                console.log(response.data);
+            }
+            catch(error){
+                console.log(error)
+            }
+        }
+
     }
     
     return (
@@ -103,6 +117,7 @@ const HomeComponent = ()=>{
                     <option value={1}>Simple Substitution</option>
                     <option value={2}>Double Transposition</option>
                     <option value={3}>RC4</option>
+                    <option value={4}>DES</option>
                 </select>
             </form>
         ): (
@@ -143,8 +158,12 @@ const HomeComponent = ()=>{
                     {encrypt===false && <label>How many characters was in the original message?<input type="text" name="numberOfCharactersInOriginalMessage"/></label>}
                     <button type="submit">Submit</button>
                 </>)}
-                {isFile!==null && cipherNum===3 && encrypt!==null && (<>
+                {isFile!==null && cipherNum===3 && encrypt!==null && (<> 
                     <label>What key do you want to use?<input type="text" name="rc4key"/></label>
+                    <button type="submit">Submit</button>
+                </>)}
+                {isFile!==null && cipherNum===4 && encrypt!==null && (<>
+                    <label>What key do you want to use?<input type="text" name="desKey"/></label>
                     <button type="submit">Submit</button>
                 </>)}
             </form>
