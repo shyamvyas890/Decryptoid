@@ -363,10 +363,8 @@ def doubleTranspositionEncrypt():
             print(e)
             return "Internal Server Error", 500
         
-
-
 @app.route('/RC4', methods=['POST'])
-def rc4Encrypt():
+def rc4EncryptDecrypt():
     file_contents=None
     rc4key=None
     if('encrypt' not in request.form):
@@ -380,7 +378,6 @@ def rc4Encrypt():
         if('rc4key' not in request.form):
             return "Must include key for encryption", 400
         rc4key = str(request.form['rc4key'])
-
     if('file' in request.files):
         uploaded_file = request.files['file']
         if(not uploaded_file.filename.lower().endswith('.txt')):
@@ -388,25 +385,21 @@ def rc4Encrypt():
         file_contents = uploaded_file.read().decode('utf-8')
     elif ('file' in request.form):
         file_contents= request.form['file']
-
-    else:
+    else:   
         return 'You have to include some content you want to encrypt', 400
     if 'cipher' not in request.form:
         return "No cipher provided", 400
-    #--------------------------------------------
-    cipherContents = request.form['cipher'] # RC4
+    cipherContents = request.form['cipher'] 
     theEncryptedContent = ""
-   
-    # CANNOT ENCODE IT BRICKS
-    rc4key.encode()
-    
-    if (encrypt):
-        if(cipherContents == "RC4"):
-            theEncryptedContent += "ABC" + rc4key.encode()
-            
+    if (encrypt): 
+        if(cipherContents == "RC4"):  
+            plainTextToByte = file_contents.encode() 
+            ciphertext = rc4_encrypt(plainTextToByte, rc4key)
+            hexaCiphertext = ''.join(f'{b:02x}' for b in ciphertext) #format ints into hexStrings
+            theEncryptedContent = hexaCiphertext
         try:
             UserId = None
-            conn = db.connect()
+            conn = db.connect() 
             cursor = conn.cursor()
             try:
                 theToken=request.cookies.get("theJSONWebToken")
@@ -425,9 +418,11 @@ def rc4Encrypt():
         except Exception as e:
             print(e)
             return "Internal Server Error", 500
-    else: # DECRYPTT
+    else: # DECRYPT
         if(cipherContents == "RC4"):
-            theEncryptedContent = "DECRYPT" + rc4key 
+            cipherTextInput = bytes.fromhex(file_contents) #convert hex back into bytes
+            decrypted_text = rc4_decrypt(cipherTextInput, rc4key)
+            theEncryptedContent = decrypted_text.decode() 
         try:
             UserId = None
             conn = db.connect()
@@ -451,39 +446,53 @@ def rc4Encrypt():
             return "Internal Server Error", 500
         
 
-
-
-
-# -------------------------------------------------------- RC4 -----------------------------------------
-
-
-
-
-
-
-
-
-
-def keySchedule(key):
-    S = list(range(256)) # list of 256 bytes
+# ------ RC4 METHODS --------------------------
+def rc4_encrypt(plaintext, key):
+    S = list(range(256))
     j = 0
-    for i in range(256):
-        j = (j + S[i] + key[i % len(key)]) % 256
-        S[i], S[j] = S[j], S[i] #swap
-    return S
+    key_length = len(key)
 
-def rc4(data, key):
-    key_bytes = bytearray(key)  # Convert key string to bytes
-    S = keySchedule(key_bytes)
-    i = j = 0                   #P RGA
-    encrypted_data = bytearray()
-    for byte in data:
+    # Key-scheduling algorithm (KSA)
+    for i in range(256):
+        j = (j + S[i] + ord(key[i % key_length])) % 256
+        S[i], S[j] = S[j], S[i]
+
+    i = j = 0
+    ciphertext = bytearray()
+
+    # Pseudo-random generation algorithm (PRGA)
+    for char in plaintext:
         i = (i + 1) % 256
         j = (j + S[i]) % 256
         S[i], S[j] = S[j], S[i]
-        K = S[(S[i] + S[j]) % 256]
-        encrypted_data.append(byte ^ K)
-    return encrypted_data
+        k = S[(S[i] + S[j]) % 256]
+        ciphertext.append(char ^ k)
+
+    return bytes(ciphertext)
+
+def rc4_decrypt(ciphertext, key):
+    S = list(range(256))
+    j = 0
+    key_length = len(key)
+
+    # Key-scheduling algorithm (KSA)
+    for i in range(256):
+        j = (j + S[i] + ord(key[i % key_length])) % 256
+        S[i], S[j] = S[j], S[i]
+
+    i = j = 0
+    plaintext = bytearray()
+
+    # Pseudo-random generation algorithm (PRGA)
+    for char in ciphertext:
+        i = (i + 1) % 256
+        j = (j + S[i]) % 256
+        S[i], S[j] = S[j], S[i]
+        k = S[(S[i] + S[j]) % 256]
+        plaintext.append(char ^ k)
+
+    return bytes(plaintext)
+# ------------------------------------------------------
 
 
 
@@ -493,11 +502,7 @@ def rc4(data, key):
 
 
 
-
-
-
-
-
+# ---------------------------------------------
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
