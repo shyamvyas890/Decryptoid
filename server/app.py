@@ -364,7 +364,7 @@ def doubleTranspositionEncrypt():
             return "Internal Server Error", 500
         
 @app.route('/RC4', methods=['POST'])
-def rc4EncryptDecrypt():
+def rc4EncryptDecrypt(): # todo: rename to handler 
     file_contents=None
     rc4key=None
     if('encrypt' not in request.form):
@@ -443,7 +443,6 @@ def rc4EncryptDecrypt():
             print(e)
             return "Internal Server Error", 500
         
-
 # ------ RC4 METHODS --------------------------
 def rc4_encrypt(plaintext, key):
     S = list(range(256))
@@ -492,7 +491,80 @@ def rc4_decrypt(ciphertext, key):
     return bytes(plaintext)
 # ------------------------------------------------------
 
-
+@app.route('/DES', methods=['POST'])
+def desHandler():
+    file_contents=None
+    desKey=None
+    if('encrypt' not in request.form):
+        return "Must include encryption information", 400
+    encrypt = True if request.form['encrypt']=="true" else False
+    if(not encrypt):
+        if('desKey' not in request.form):
+            return "Must include key for decryption", 400
+        desKey = str(request.form['desKey'])
+    if(encrypt):
+        if('desKey' not in request.form):
+            return "Must include key for encryption", 400
+        desKey = str(request.form['desKey'])
+    if('file' in request.files):
+        uploaded_file = request.files['file']
+        if(not uploaded_file.filename.lower().endswith('.txt')):
+            return "Only txt files are accepted, sorry", 400
+        file_contents = uploaded_file.read().decode('utf-8')
+    elif ('file' in request.form):
+        file_contents= request.form['file']
+    else:   
+        return 'You have to include some content you want to encrypt', 400
+    cipherContents = "DES" 
+    theEncryptedContent = ""
+    if (encrypt): 
+        if(cipherContents == "DES"):  
+            theEncryptedContent = file_contents + " DES ENCRYPT " + desKey
+        try:
+            UserId = None
+            conn = db.connect() 
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "DES", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return jsonify({"theEncryptedContent":theEncryptedContent, "length": len(file_contents)}), 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
+    else: # DECRYPT
+        if(cipherContents == "DES"):
+            theEncryptedContent = file_contents + " DES ENCRYPT " + desKey
+        try:
+            UserId = None
+            conn = db.connect()
+            cursor = conn.cursor()
+            try:
+                theToken=request.cookies.get("theJSONWebToken")
+                cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
+                rows= cursor.fetchall()
+                if(len(rows)==0):
+                    decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
+                    UserId = decodedToken.get('UserId')  
+            except Exception as decodingTokenException:
+                print(decodingTokenException)
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "DES", UserId))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return theEncryptedContent, 200
+        except Exception as e:
+            print(e)
+            return "Internal Server Error", 500
 
 
 
