@@ -144,11 +144,6 @@ const HomeComponent = ()=>{
                     <button type="submit">Submit</button>
                 </>)}
                 {isFile!==null && cipherNum===3 && encrypt!==null && (<>
-                    <label>Select the cipher you want to use</label>
-                    <select onChange = {handleChooseCipher} value={theCipher===null? "Select": theCipher}>
-                        <option value={"Select"}>Select</option>
-                        <option value={"RC4"}>RC4</option>
-                    </select>  
                     <label>What key do you want to use?<input type="text" name="rc4key"/></label>
                     <button type="submit">Submit</button>
                 </>)}

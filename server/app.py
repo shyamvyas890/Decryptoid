@@ -387,9 +387,7 @@ def rc4EncryptDecrypt():
         file_contents= request.form['file']
     else:   
         return 'You have to include some content you want to encrypt', 400
-    if 'cipher' not in request.form:
-        return "No cipher provided", 400
-    cipherContents = request.form['cipher'] 
+    cipherContents = "RC4" 
     theEncryptedContent = ""
     if (encrypt): 
         if(cipherContents == "RC4"):  
