@@ -194,7 +194,7 @@ const HomeComponent = ()=>{
                 
                 {isFile !== null && cipherNum === 1 && encrypt !== null && (
                   <>
-                    <label className={styles.label}>Select the cipher you want to use</label>
+                    <label className={styles.label}>Select a substitution cipher</label>
                     <select onChange={handleChooseCipher} value={theCipher === null ? "Select" : theCipher} className="form-control mb-3">
                       <option value={"Select"}>Select</option>
                       <option value={"qwertyuiopasdfghjklzxcvbnm-->cjkqmoxwbdrinuvplzsehgytaf"}>{`qwertyuiopasdfghjklzxcvbnm-->cjkqmoxwbdrinuvplzsehgytaf`}</option>
