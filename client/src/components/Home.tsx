@@ -227,14 +227,14 @@ const HomeComponent = ()=>{
                 )}
                 {responseData !== null && !responseData.error && cipherNum === 1 && (
                 <div className={styles.resultContainer}>
-                    <label className={styles.label}>Content<div>{typeof responseData === "string" ? responseData : ""}</div></label>
+                    <label className={styles.label}>Content<div>{`"${typeof responseData === "string" ? responseData : ""}"`}</div></label>
                     <button onClick={restart} className="btn btn-secondary">Restart</button>
                 </div>
                 )}
 
                 {responseData !== null && !responseData.error && cipherNum === 2 && encrypt === true && (
                 <div className={styles.resultContainer}>
-                    <label className={styles.label}>Content<div>{typeof responseData === "string" ? responseData : responseData.theEncryptedContent}</div></label>
+                    <label className={styles.label}>Content<div>{`"${typeof responseData === "string" ? responseData : responseData.theEncryptedContent}"`}</div></label>
                     <label className={styles.label}>Length<div>{responseData.length}</div></label>
                     <button onClick={restart} className="btn btn-secondary">Restart</button>
                 </div>
@@ -243,7 +243,7 @@ const HomeComponent = ()=>{
                 {responseData !== null && !responseData.error && cipherNum === 2 && encrypt === false && (
                     <div className={styles.resultContainer}>
                         <label className={styles.label}>Content
-                        <div>{typeof responseData === "string" ? responseData : responseData.theEncryptedContent}</div>
+                        <div>{`"${typeof responseData === "string" ? responseData : responseData.theEncryptedContent}"`}</div>
                         </label>
                         <button onClick={restart} className="btn btn-secondary">Restart</button>
                     </div>
@@ -252,7 +252,7 @@ const HomeComponent = ()=>{
                 {responseData !== null && !responseData.error && cipherNum === 3 && (
                     <div className={styles.resultContainer}>
                         <label className={styles.label}>Content
-                        <div>{typeof responseData === "string" ? responseData : responseData.theEncryptedContent}</div>
+                        <div>{`"${typeof responseData === "string" ? responseData : responseData.theEncryptedContent}"`}</div>
                         </label>
                         <button onClick={restart} className="btn btn-secondary">Restart</button>
                     </div>
