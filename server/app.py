@@ -319,7 +319,8 @@ def doubleTranspositionEncrypt():
                     UserId = decodedToken.get('UserId')  
             except Exception as decodingTokenException:
                 print(decodingTokenException)
-            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "double transposition", UserId))
+            cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",
+                           (file_contents, "double transposition", UserId))
             conn.commit()
             cursor.close()
             conn.close()
@@ -565,12 +566,6 @@ def desHandler():
         except Exception as e:
             print(e)
             return "Internal Server Error", 500
-
-
-
-
-
-
 
 # ---------------------------------------------
 
