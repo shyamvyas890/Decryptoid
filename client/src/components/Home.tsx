@@ -6,6 +6,7 @@ const HomeComponent = ()=>{
     const [isFile, setIsFile] = React.useState<boolean | null>(null);
     const [encrypt, setEncrypt] = React.useState<boolean | null>(null);
     const [theCipher, setTheCipher] = React.useState<string | null>(null);
+    const [responseData, setResponseData] = React.useState<any>(null);
     const handleChooseEncryptionMethod = (event)=>{
         if(event.target.value === "0"){
             setCipherNum(null);
@@ -24,6 +25,13 @@ const HomeComponent = ()=>{
     }
     const handleChooseCipher = (event)=>{
         setTheCipher(event.target.value==="Select"? null: event.target.value)
+    }
+    const restart = (event)=>{
+        setCipherNum(null);
+        setIsFile(null);
+        setEncrypt(null);
+        setTheCipher(null);
+        setResponseData(null);
     }
     const handleOnSubmit = async (event)=>{
         event.preventDefault();
@@ -57,12 +65,11 @@ const HomeComponent = ()=>{
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                console.log(response.data);
+                setResponseData(response.data);
             }
             catch(error){
-                console.log(error)
+                setResponseData({error: "There is something wrong with your input. Please try again."})
             }
-
         }
         else if(cipherNum === 2) {
             try{
@@ -71,10 +78,12 @@ const HomeComponent = ()=>{
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                console.log(response.data);
+                response.data.cipherNum=2;
+                console.log(response.data)
+                setResponseData(response.data);
             }
             catch(error){
-                console.log(error)
+                setResponseData({error: "There is something wrong with your input. Please try again."})
             }
         }
         // ADD RC4
@@ -85,10 +94,12 @@ const HomeComponent = ()=>{
                         'Content-Type': 'multipart/form-data'
                     }
                 });
+                response.data.cipherNum=3;
                 console.log(response.data);
+                setResponseData(response.data);
             }
             catch(error){
-                console.log(error)
+                setResponseData({error: "There is something wrong with your input. Please try again."})
             }
         }
 
@@ -120,7 +131,7 @@ const HomeComponent = ()=>{
                     <option value={4}>DES</option>
                 </select>
             </form>
-        ): (
+        ): (<>
             <form onSubmit={handleOnSubmit}>
                 {isFile === null && (<div>
                     <label>Do you want to encrypt or decrypt with file or text input?</label>
@@ -167,6 +178,10 @@ const HomeComponent = ()=>{
                     <button type="submit">Submit</button>
                 </>)}
             </form>
+            {responseData!==null && cipherNum === 1 && <div><div>{typeof responseData === "string"? responseData: ""}</div><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && cipherNum === 2 && <div> <label>Content<div>{responseData.theEncryptedContent}</div></label><label>Length<div>{responseData.length}</div></label><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && cipherNum === 3 && <div> <label>Content<div>{responseData.theEncryptedContent}</div></label><label>Length<div>{responseData.length}</div></label><button onClick={restart}>Restart</button></div>}
+            </>
 
         )
     )
