@@ -78,7 +78,6 @@ const HomeComponent = ()=>{
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                response.data.cipherNum=2;
                 console.log(response.data)
                 setResponseData(response.data);
             }
@@ -94,11 +93,11 @@ const HomeComponent = ()=>{
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                response.data.cipherNum=3;
                 console.log(response.data);
                 setResponseData(response.data);
             }
             catch(error){
+                console.log(error)
                 setResponseData({error: "There is something wrong with your input. Please try again."})
             }
         }
@@ -132,7 +131,8 @@ const HomeComponent = ()=>{
                 </select>
             </form>
         ): (<>
-            <form onSubmit={handleOnSubmit}>
+
+            {responseData === null && <form onSubmit={handleOnSubmit}>
                 {isFile === null && (<div>
                     <label>Do you want to encrypt or decrypt with file or text input?</label>
                     <select onChange={handleChooseInputMethod} value={isFile===null? 0: isFile===true? 1: 2}>
@@ -177,10 +177,12 @@ const HomeComponent = ()=>{
                     <label>What key do you want to use?<input type="text" name="desKey"/></label>
                     <button type="submit">Submit</button>
                 </>)}
-            </form>
-            {responseData!==null && cipherNum === 1 && <div><div>{typeof responseData === "string"? responseData: ""}</div><button onClick={restart}>Restart</button></div>}
-            {responseData!==null && cipherNum === 2 && <div> <label>Content<div>{responseData.theEncryptedContent}</div></label><label>Length<div>{responseData.length}</div></label><button onClick={restart}>Restart</button></div>}
-            {responseData!==null && cipherNum === 3 && <div> <label>Content<div>{responseData.theEncryptedContent}</div></label><label>Length<div>{responseData.length}</div></label><button onClick={restart}>Restart</button></div>}
+            </form>}
+            {responseData!==null && !responseData.error && cipherNum === 1 && <div><div>{typeof responseData === "string"? responseData: ""}</div><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && !responseData.error && cipherNum === 2 && encrypt === true && <div> <label>Content<div>{typeof responseData === "string"? responseData: responseData.theEncryptedContent}</div></label><label>Length<div>{responseData.length}</div></label><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && !responseData.error && cipherNum === 2 && encrypt === false && <div> <label>Content<div>{typeof responseData === "string"? responseData: responseData.theEncryptedContent}</div></label><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && !responseData.error && cipherNum === 3 && <div> <label>Content<div>{ typeof responseData === "string"? responseData: responseData.theEncryptedContent}</div></label><button onClick={restart}>Restart</button></div>}
+            {responseData!==null && responseData.error && <div>Something is Wrong With Your Input</div>}
             </>
 
         )
