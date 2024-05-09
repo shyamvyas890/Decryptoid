@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../utils/AxiosWithCredentials.ts';
 import { hostname } from '../utils/utils.ts';
+import { useNavigate } from 'react-router-dom';
+
 const LoginComponent = () => {
+  const navigate = useNavigate();
   const [feedback, setFeedback]= useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null)
@@ -50,12 +53,19 @@ const LoginComponent = () => {
     setFeedback('');
   }
 
+  // reset button 
+  const handleRedirect = () => {
+    navigate('/');
+  };
+
+
   return (
     <div>
         {isLoggedIn?(
             <div>
             <h1>Welcome, {username}!</h1>
             <button onClick={handleLogout}>Logout</button>
+            <button onClick={handleRedirect}>Go to Homepage</button>
             </div>
 
         ) :isLoggedIn===false? (<div>
