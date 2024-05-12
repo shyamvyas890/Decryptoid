@@ -112,6 +112,7 @@ const HomeComponent = ()=>{
                 setResponseData(response.data);
             }
             catch(error){
+                setResponseData({error: error.response.data})
                 
             }
         }
