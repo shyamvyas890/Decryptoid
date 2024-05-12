@@ -73,18 +73,20 @@ const LoginComponent = () => {
         <form onSubmit={handleLogin}>
             <label>
             Username:
+            <br />
             <input type="text" value={username===null? "": username} onChange={(e) => setUsername(e.target.value)} />
             </label>
             <br />
             <label>
             Password:
+            <br />
             <input type="password" name="passwordInput"/>
             </label>
             <br />
             <button type="submit">Login</button>
         </form>
         <div>Don't have an account? <Link to="/register">Register here!</Link></div>
-        {feedback && (feedback==="Your password is incorrect." || feedback==="This username does not exist." || feedback==="Error logging in.") && <p style={{color:'red'}}>{feedback}</p>}
+        {feedback && (feedback!=="Login Successful") && <p style={{color:'red'}}>{feedback}</p>}
         {feedback && feedback ==="Login Successful" && <p style={{color:'green'}}>{feedback}</p>}
         </div>):null
         }

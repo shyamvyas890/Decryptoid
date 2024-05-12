@@ -1,12 +1,8 @@
 from flask import Flask, request, jsonify, make_response
 from flaskext.mysql import MySQL
-import bcrypt
-import jwt
-import datetime
+import bcrypt, jwt, datetime, math, re
 from datetime import timezone
 from flask_cors import CORS
-import math
-
 app = Flask(__name__)
 CORS(app, origins="http://localhost:3000", supports_credentials=True)
 
@@ -30,33 +26,53 @@ def hashedPassword(plaintextPassword):
 def register():
     username = request.json.get('username')
     password = request.json.get('password')
-    if not username or not password:
-        return "You need to include both a username and a password", 400
+    email = request.json.get('email')
+    if not username or not password or not email:
+        return "You need to include a username, email and a password", 400
+    usernamePattern = r"^[a-zA-Z0-9_-]+$"
+    if not re.fullmatch(usernamePattern, username):
+        return "That is not a valid username.", 400
+    emailPattern = r'^[a-zA-Z0-9._]+@[a-zA-Z0-9.]+\.[a-zA-Z]{2,}$'
+    if not re.fullmatch(emailPattern, email):
+        return "That is not a valid email.", 400
     theHashedPassword = hashedPassword(password)
     conn= None
     cursor = None
     try:
         conn = db.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username,));
+        cursor.execute("SELECT * FROM Users WHERE Username = %s", (username,))
         rows= cursor.fetchall()
         if(len(rows)==1):
             cursor.close()
             conn.close()
             return "This username is already taken. Please choose a different username.", 400
-        cursor.execute("INSERT INTO Users (Username, PasswordHash) VALUES (%s,%s)",(username, theHashedPassword))
+        cursor.execute("SELECT * FROM Users WHERE Email = %s", (email,))
+        rows= cursor.fetchall()
+        if(len(rows)==1):
+            cursor.close()
+            conn.close()
+            return "This email is already taken. Please choose a different email.", 400
+        print("made it here")
+        cursor.execute("INSERT INTO Users (Username, Email, PasswordHash) VALUES (%s,%s,%s)",(username, email, theHashedPassword))
         conn.commit()
+        payload= {"UserId": cursor.lastrowid, 
+                  "Username": username,
+                  'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(hours=24)}
+        token= jwt.encode(payload, secretKey,algorithm='HS256')
+        response = make_response("User Registered Successfully")
+        response.status_code=201
+        response.set_cookie('theJSONWebToken', token, max_age=86400, httponly=True)
         cursor.close()
         conn.close()
-        return "User Registered Successfully", 201
+        return response
     except Exception as e:
         if(cursor):
             cursor.close()
         if(conn):
             conn.close()
         print(e)
-
-        return "Internal Server Error", 500
+        return "Something went wrong", 500
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -75,7 +91,7 @@ def login():
         conn.close()
         if(len(rows)==0):
             return "This username does not exist.", 400
-        if(not bcrypt.checkpw(password.encode('utf-8'), rows[0][2].encode('utf-8'))):
+        if(not bcrypt.checkpw(password.encode('utf-8'), rows[0][3].encode('utf-8'))):
             return "Your password is incorrect.", 401
         else:
             payload= {"UserId": rows[0][0], 
@@ -99,7 +115,7 @@ def login():
 def verify_token():
     theToken=request.cookies.get("theJSONWebToken")
     if(theToken is None):
-        response = make_response("No token provided")
+        response = make_response("Unauthorized")
         response.status_code=401
         return response
     conn=None
@@ -110,7 +126,7 @@ def verify_token():
         cursor.execute("SELECT * FROM BlacklistedTokens WHERE Token = %s", (theToken,))
         rows= cursor.fetchall()
         if(len(rows)!=0):
-            response = make_response("Token is blacklisted")
+            response = make_response("Unauthorized")
             response.status_code=401
             response.set_cookie('theJSONWebToken', '', expires=0)
             cursor.close()
@@ -126,7 +142,7 @@ def verify_token():
             print(decodingTokenException)
             cursor.close()
             conn.close()
-            response = make_response("Token is invalid")
+            response = make_response("Unauthorized")
             response.status_code=401
             response.set_cookie('theJSONWebToken', '', expires=0)
             return response
@@ -169,7 +185,7 @@ def logout():
             print(decodingTokenException)
             cursor.close()
             conn.close()
-            return "Token is invalid", 401
+            return "Something is wrong with your request.", 401
     except Exception as ServerException:
         if(cursor):
             cursor.close()
@@ -214,7 +230,9 @@ def substitionEncrypt():
                 theEncryptedContent += cipherContent1[index]
     except Exception as e:
         print(e)
-        return "Your file can only contain lowercase english letters and spaces.", 400
+        response = make_response("Your file can only contain lowercase english letters and spaces.")
+        response.status_code = 400
+        return response
     try:
         UserId = None
         conn = db.connect()
@@ -225,9 +243,12 @@ def substitionEncrypt():
             rows= cursor.fetchall()
             if(len(rows)==0):
                 decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                UserId = decodedToken.get('UserId')  
+                UserId = decodedToken.get('UserId')
+            else:
+                return "Unauthorized", 401 
         except Exception as decodingTokenException:
             print(decodingTokenException)
+            return "Unauthorized", 401
         cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "substitution", UserId))
         conn.commit()
         cursor.close()
@@ -263,7 +284,11 @@ def doubleTranspositionEncrypt():
     if(not encrypt):
         if('numberOfCharactersInOriginalMessage' not in request.form):
             return "You must return the number of characters originally in the message if you want to decrypt with this cipher", 400
-        numberOfCharactersInOriginalMessageIfDecrypt = int(request.form['numberOfCharactersInOriginalMessage'])
+        try:
+            numberOfCharactersInOriginalMessageIfDecrypt = int(request.form['numberOfCharactersInOriginalMessage'])
+        except ValueError as valueError:
+            print(valueError)
+            return "The number of characters you entered is not a valid integer", 400
     if('file' in request.files):
         uploaded_file = request.files['file']
         if(not uploaded_file.filename.lower().endswith('.txt')):
@@ -316,9 +341,12 @@ def doubleTranspositionEncrypt():
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId')
+                else:
+                    return "Unauthorized", 401  
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",
                            (file_contents, "double transposition", UserId))
             conn.commit()
@@ -352,9 +380,12 @@ def doubleTranspositionEncrypt():
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId')
+                else:
+                    return "Unauthorized", 401  
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "double transposition", UserId))
             conn.commit()
             cursor.close()
@@ -374,9 +405,13 @@ def rc4EncryptDecrypt(): # todo: rename to handler
     if(not encrypt):
         if('rc4key' not in request.form):
             return "Must include key for decryption", 400
+        if(request.form['rc4key']==""):
+            return "Must include key for decryption", 400
         rc4key = str(request.form['rc4key'])
     if(encrypt):
         if('rc4key' not in request.form):
+            return "Must include key for encryption", 400
+        if(request.form['rc4key']==""):
             return "Must include key for encryption", 400
         rc4key = str(request.form['rc4key'])
     if('file' in request.files):
@@ -406,9 +441,12 @@ def rc4EncryptDecrypt(): # todo: rename to handler
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId')
+                else:
+                    return "Unauthorized", 401
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "RC4", UserId))
             conn.commit()
             cursor.close()
@@ -432,9 +470,12 @@ def rc4EncryptDecrypt(): # todo: rename to handler
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId')
+                else:
+                    return "Unauthorized", 401  
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "RC4", UserId))
             conn.commit()
             cursor.close()
@@ -502,9 +543,13 @@ def desHandler():
     if(not encrypt):
         if('desKey' not in request.form):
             return "Must include key for decryption", 400
+        if(request.form['desKey'] == ""):
+            return "Must include key for decryption", 400
         desKey = str(request.form['desKey'])
     if(encrypt):
         if('desKey' not in request.form):
+            return "Must include key for encryption", 400
+        if(request.form['desKey'] == ""):
             return "Must include key for encryption", 400
         desKey = str(request.form['desKey'])
     if('file' in request.files):
@@ -531,9 +576,12 @@ def desHandler():
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId')
+                else:
+                    return "Unauthorized", 401  
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "DES", UserId))
             conn.commit()
             cursor.close()
@@ -555,9 +603,12 @@ def desHandler():
                 rows= cursor.fetchall()
                 if(len(rows)==0):
                     decodedToken= jwt.decode(theToken, secretKey, algorithms="HS256")
-                    UserId = decodedToken.get('UserId')  
+                    UserId = decodedToken.get('UserId') 
+                else:
+                    return "Unauthorized", 401 
             except Exception as decodingTokenException:
                 print(decodingTokenException)
+                return "Unauthorized", 401
             cursor.execute("INSERT INTO DecryptoidUses (InputText, CipherUsed, UserId) VALUES (%s,%s, %s)",(file_contents, "DES", UserId))
             conn.commit()
             cursor.close()

@@ -3,6 +3,7 @@ import axios from "../utils/AxiosWithCredentials.ts";
 import { hostname } from "../utils/utils.ts";
 import styles from './Home.module.css';
 import 'bootstrap/dist/css/bootstrap.min.css'; // npm install bootstrap
+import { useNavigate } from "react-router-dom";
 
 const HomeComponent = ()=>{
     const [cipherNum, setCipherNum]= React.useState< 1 | 2 | 3 | 4 | null>(null); // 1 is substitution cipher, 2 is double transposition, 3 is Rc4, 4 is DES
@@ -10,6 +11,26 @@ const HomeComponent = ()=>{
     const [encrypt, setEncrypt] = React.useState<boolean | null>(null);
     const [theCipher, setTheCipher] = React.useState<string | null>(null);
     const [responseData, setResponseData] = React.useState<any>(null);
+    const [isLoggedIn, setIsLoggedIn] = React.useState<boolean>(false);
+    const navigate = useNavigate();
+    const tokenVerify= async () => {
+        try{
+            await axios.get(`${hostname}/verify-token`)
+            setIsLoggedIn(true)
+        }
+        catch(error){
+          console.log(error)
+          navigate('/login');
+        }
+      
+    }
+  
+    React.useEffect(()=>{
+      tokenVerify();
+    }, []);
+
+
+
     const handleChooseEncryptionMethod = (event)=>{
         if(event.target.value === "0"){
             setCipherNum(null);
@@ -41,6 +62,10 @@ const HomeComponent = ()=>{
         console.log(event);
         const theData = new FormData();
         if(isFile){
+            if(event.target.elements.theInputFile.files[0] === undefined){
+                window.alert("You have to choose a file!");
+                return;
+            }
             theData.append('file', event.target.elements.theInputFile.files[0])
         }
         else if(isFile===false){
@@ -53,12 +78,28 @@ const HomeComponent = ()=>{
             theData.append("encrypt", encrypt.toString())
         }
         if(encrypt === false && cipherNum === 2){
+            if(event.target.elements.numberOfCharactersInOriginalMessage.value === ""){
+                window.alert("Must include number of characters in original message!")
+                return;
+            }
+            if(isNaN(parseInt(event.target.elements.numberOfCharactersInOriginalMessage.value))){
+                window.alert("Please enter a valid number");
+                return;
+            }
             theData.append('numberOfCharactersInOriginalMessage', event.target.elements.numberOfCharactersInOriginalMessage.value)
         }
         if(cipherNum === 3) {
+            if(event.target.elements.rc4key.value === ""){
+                window.alert("Must include a key.")
+                return;
+            }
             theData.append('rc4key', event.target.elements.rc4key.value)
         }
         if(cipherNum === 4) {
+            if(event.target.elements.desKey.value === ""){
+                window.alert("Must include a key.")
+                return;
+            }
             theData.append('desKey', event.target.elements.desKey.value)
         }
         if(cipherNum === 1){
@@ -71,7 +112,7 @@ const HomeComponent = ()=>{
                 setResponseData(response.data);
             }
             catch(error){
-                setResponseData({error: "There is something wrong with your input. Please try again."})
+                
             }
         }
         else if(cipherNum === 2) {
@@ -85,7 +126,7 @@ const HomeComponent = ()=>{
                 setResponseData(response.data);
             }
             catch(error){
-                setResponseData({error: "There is something wrong with your input. Please try again."})
+                setResponseData({error: error.response.data})
             }
         }
         // ADD RC4
@@ -101,7 +142,7 @@ const HomeComponent = ()=>{
             }
             catch(error){
                 console.log(error)
-                setResponseData({error: "There is something wrong with your input. Please try again."})
+                setResponseData({error: error.response.data})
             }
         }
 
@@ -116,15 +157,30 @@ const HomeComponent = ()=>{
             }
             catch(error){
                 console.log(error)
+                setResponseData({error: error.response.data})
             }
+        }
+
+    }
+    const handleLogout = async ()=>{
+        try {
+            await axios.post(`${hostname}/logout`)
+            navigate("/login")
+        }
+        catch(error){
+            console.log(error)
         }
 
     }
     
     return (
+        isLoggedIn &&
         <>
        <div className={styles.bodyBackground}>
-        <h1 className={styles.title}>Decryptoid</h1>
+        <div style= {{display:"flex", width:"100%", flexDirection:"row", alignItems: "center", justifyContent: "space-evenly"}}>
+            <h1 className={styles.title}>Decryptoid</h1>
+            <button onClick={handleLogout}>Logout</button>
+        </div>
         <div className={`container ${styles.container}`}>
         <div className="row justify-content-center">
         <div className="col-md-8">
@@ -191,7 +247,6 @@ const HomeComponent = ()=>{
                     )}
                 </>
                 )}
-                
                 {isFile !== null && cipherNum === 1 && encrypt !== null && (
                   <>
                     <label className={styles.label}>Select a substitution cipher</label>
@@ -260,7 +315,7 @@ const HomeComponent = ()=>{
             
                 {responseData !== null && responseData.error && (
                     <div className={styles.resultContainer}>
-                        <div className={styles.errorMessage}>Something is Wrong With Your Input</div>
+                        <div className={styles.errorMessage}>{responseData.error}</div>
                         <button onClick={restart} className="btn btn-secondary">Restart</button>
                     </div>
                 )}
