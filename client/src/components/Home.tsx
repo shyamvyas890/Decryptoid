@@ -95,7 +95,7 @@ const HomeComponent = ()=>{
             }
             theData.append('rc4key', event.target.elements.rc4key.value)
         }
-        if(cipherNum === 4) {
+        if(cipherNum === 4 && encrypt === false) {
             if(event.target.elements.desKey.value === ""){
                 window.alert("Must include a key.")
                 return;
@@ -130,7 +130,6 @@ const HomeComponent = ()=>{
                 setResponseData({error: error.response.data})
             }
         }
-        // ADD RC4
         else if(cipherNum === 3) {
             try{
                 const response = await axios.post(`${hostname}/RC4`, theData, {
@@ -275,11 +274,16 @@ const HomeComponent = ()=>{
                     <label className={styles.label}>What key do you want to use? <input type="text" name="rc4key" placeholder="Enter key..."/></label>
                     <button className={`${styles.button} btn btn-primary`} type="submit">Submit</button>
                 </>)}
-                {isFile!==null && cipherNum===4 && encrypt!==null && (<>
+                {isFile!==null && cipherNum===4 && encrypt === false && (<> 
                     <label className={styles.label}>What key do you want to use? <input type="text" name="desKey" placeholder="Enter key..."/></label>
-                    <button className={`${styles.button} btn btn-primary`} type="submit">Submit</button>
                 </>)}
                 
+                {isFile!==null && cipherNum===4 && encrypt!==null && (<>
+                    <label className={styles.label}>Note: Only 64-bit hexadecimal are accepted</label>
+                    <label className={styles.label}>Example: "4D6163626F6F6B73" ("Macbooks" in ASCII)</label>
+                    <button className={`${styles.button} btn btn-primary`} type="submit">Submit</button>
+                </>)}
+
                 </form>
                 )}
                 {responseData !== null && !responseData.error && cipherNum === 1 && (
@@ -318,11 +322,22 @@ const HomeComponent = ()=>{
                 </div>
                 )}
 
-                {responseData !== null && !responseData.error && cipherNum === 4 && (
+                {responseData !== null && !responseData.error && cipherNum === 4 && encrypt === false &&(
                 <div className={styles.resultContainer}>
                     <label className={styles.label}>
                     Content
                     <div>{`"${typeof responseData === "string" ? responseData : responseData.theEncryptedContent || ''}"`}</div>
+                    </label>
+                    <button onClick={restart} className="btn btn-secondary">Restart</button>
+                </div>
+                )}  
+
+                {responseData !== null && !responseData.error && cipherNum === 4 && encrypt === true &&(
+                <div className={styles.resultContainer}>
+                    <label className={styles.label}>
+                    Content
+                    <div>{`"${typeof responseData === "string" ? responseData : responseData.theEncryptedContent || ''}"`}</div>
+                    <label className={styles.label}>Randomly Generated 64-Bit Key<div>{responseData.desKey}</div></label>
                     </label>
                     <button onClick={restart} className="btn btn-secondary">Restart</button>
                 </div>
