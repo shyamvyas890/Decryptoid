@@ -18,13 +18,13 @@ Users can [register, login, and logout](#authentication) of the application at t
 Encrypt and Decrypt your secrets with either the substitution, double transposition, RC4, or DES [cipher](#ciphers).
 
 ### Input Validation
-Input is validated on both the client and server side to make sure that it is formatted properly.
+Input is [validated] (#validation) on both the client and server side to make sure that it is formatted properly.
 
 ### Security Features
 - **JSON Web Token Authentication:** JSON Web Tokens Are issued by the server to the client to as a means of authenticating the user. If the user isn't logged in, they are redirected to the login page.
 - **HTTP Only Cookies:** JSON Web Tokens are stored securely by the client in an HTTP only cookie to prevent client side JavaScript from accessing it.
 - **REST API Authentication:** Protected routes verify that the user has a valid JSON web token, before allowing the user to access the path.
-- **Cookie and Token Expiry:** Both the JSON Web token, and the HTTP only cookie are set to expire automatically after 24 hours, which automatically logs users out after 24 hours, for the user's own security.
+- **Cookie and Token Expiry:** Both the JSON Web token, and the HTTP only cookie are set to expire automatically after 24 hours, which automatically logs users out after 24 hours, for the user's own [security](#security)
 - **Password Hashing:** All passwords are securely hashed first, before being stored in the MySQL database.
 
 ## Technologies Used
@@ -76,7 +76,7 @@ CREATE TABLE DecryptoidUses (
 ```python
 app.config['MYSQL_DATABASE_HOST'] = 'localhost' 
 app.config['MYSQL_DATABASE_USER'] = 'root' 
-app.config['MYSQL_DATABASE_PASSWORD'] = 'password' # root for windows   
+app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
 app.config['MYSQL_DATABASE_DB'] = 'Decryptoid' 
 ```
 
