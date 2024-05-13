@@ -584,8 +584,8 @@ def desHandler():
                 roundKeyBinary.append(round_key)
 
             plaintext = file_contents
-            cipher_text = bin2hex(desEncrypt(plaintext, roundKeyBinary))
-            theEncryptedContent= cipher_text
+            cipher_text = desEncrypt(plaintext, roundKeyBinary)
+            theEncryptedContent = cipher_text
             
         try:
             UserId = None
@@ -633,9 +633,8 @@ def desHandler():
             rkb_rev = roundKeyBinary[::-1]
             
             ciphertext = file_contents
-            decrypted_binary_text = desDecrypt(ciphertext, rkb_rev)
-            plaintext = bin2hex(decrypted_binary_text)
-            theEncryptedContent = plaintext
+            decrypted_text = desDecrypt(ciphertext, rkb_rev)
+            theEncryptedContent = decrypted_text
 
         try:
             UserId = None
@@ -767,6 +766,23 @@ final_perm = [40, 8, 48, 16, 56, 24, 64, 32,
 # __________________________HELPER FUNCTIONS___________________________________
 # _____________________________________________________________________________
 
+def plaintext_to_hex(plaintext):
+    hex_string = plaintext.encode('utf-8').hex().upper()
+    return hex_string
+
+# Pad plaintext to make it a multiple of 8 
+def pad_plaintext(plaintext):
+    padding_len = 8 - (len(plaintext) % 8)
+    if padding_len != 8:
+        plaintext += chr(padding_len) * padding_len
+    return plaintext
+
+#random 64 bit key for DES - will be provided to the user for decryption 
+def generate64BitKey():
+    random_bits = [random.choice(['0', '1']) for _ in range(64)]
+    random_key = ''.join(random_bits)
+    return random_key
+
 # Hexadecimal String to Binary
 def hex2bin(hexadecimalString):
     hex2BinMapping = {'0': "0000", '1': "0001", '2': "0010", '3': "0011",
@@ -839,94 +855,98 @@ def xor(a, b):
     return ans
 
 def desEncrypt(plaintext, roundKeyBinary):
+    plaintext = pad_plaintext(plaintext)
+    hex_plaintext = plaintext_to_hex(plaintext)
     
-    plaintext = hex2bin(plaintext)
-    plaintext = permute(plaintext, initial_perm, 64)
+    cipher_text = ""
+    for i in range(0, len(hex_plaintext), 16):
+        block = hex_plaintext[i:i+16]
+        block_binary = hex2bin(block)
+        block_binary = permute(block_binary, initial_perm, 64)
+        
+        left = block_binary[0:32]
+        right = block_binary[32:64]
+        
+        for j in range(0, 16):
+            #  Expansion D-box: Expanding the 32 bits data into 48 bits
+            right_expanded = permute(right, exp_d, 48)
+            
+            # XOR RoundKey[j] and right_expanded
+            xor_x = xor(right_expanded, roundKeyBinary[j])
+            
+            # S-boxex: substituting the value from s-box table by calculating row and column
+            sbox_str = ""
+            for k in range(0, 8):
+                row = bin2dec(int(xor_x[k * 6] + xor_x[k * 6 + 5]))
+                col = bin2dec(int(xor_x[k * 6 + 1] + xor_x[k * 6 + 2] + xor_x[k * 6 + 3] + xor_x[k * 6 + 4]))
+                val = sbox[k][row][col]
+                sbox_str = sbox_str + dec2bin(val)
+            
+            # Straight D-box: After substituting rearranging the bits
+            sbox_str = permute(sbox_str, per, 32)
+            
+            # XOR left and sbox_str
+            result = xor(left, sbox_str)
+            left = result
+            
+            # Swapper
+            if j != 15:
+                left, right = right, left
+        
+        # Combination 
+        combine = left + right 
+        
+        # Final permutation: final rearranging of bits to get cipher text
+        cipher_text += bin2hex(permute(combine, final_perm, 64))
     
-    left = plaintext[0:32]
-    right = plaintext[32:64]
-    for i in range(0, 16):
-        #  Expansion D-box: Expanding the 32 bits data into 48 bits
-        right_expanded = permute(right, exp_d, 48)
- 
-        # XOR RoundKey[i] and right_expanded
-        xor_x = xor(right_expanded, roundKeyBinary[i])
- 
-        # S-boxex: substituting the value from s-box table by calculating row and column
-        sbox_str = ""
-        for j in range(0, 8):
-            row = bin2dec(int(xor_x[j * 6] + xor_x[j * 6 + 5]))
-            col = bin2dec(
-                int(xor_x[j * 6 + 1] + xor_x[j * 6 + 2] + xor_x[j * 6 + 3] + xor_x[j * 6 + 4]))
-            val = sbox[j][row][col]
-            sbox_str = sbox_str + dec2bin(val)
- 
-        # Straight D-box: After substituting rearranging the bits
-        sbox_str = permute(sbox_str, per, 32)
- 
-        # XOR left and sbox_str
-        result = xor(left, sbox_str)
-        left = result
- 
-        # Swapper
-        if(i != 15):
-            left, right = right, left
- 
-    # Combination 
-    combine = left + right 
- 
-    # Final permutation: final rearranging of bits to get cipher text
-    cipher_text = permute(combine, final_perm, 64)
     return cipher_text
 
+
 def desDecrypt(ciphertext, roundKeyBinaryReverse):
-    ct = hex2bin(ciphertext)
-    ct = permute(ct, initial_perm, 64)
+    plaintext_hex = ""
+    for i in range(0, len(ciphertext), 16):
+        block = ciphertext[i:i+16]
+        block_binary = hex2bin(block)
+        block_binary = permute(block_binary, initial_perm, 64)
+        
+        left = block_binary[0:32]
+        right = block_binary[32:64]
+        
+        for j in range(0, 16):
+            # Expansion D-box
+            right_expanded = permute(right, exp_d, 48)
+            
+            # XOR with round key
+            xor_x = xor(right_expanded, roundKeyBinaryReverse[j])
+            
+            # S-boxes
+            sbox_str = ""
+            for k in range(0, 8):
+                row = bin2dec(int(xor_x[k * 6] + xor_x[k * 6 + 5]))
+                col = bin2dec(int(xor_x[k * 6 + 1] + xor_x[k * 6 + 2] + xor_x[k * 6 + 3] + xor_x[k * 6 + 4]))
+                val = sbox[k][row][col]
+                sbox_str = sbox_str + dec2bin(val)
+            
+            # D-box
+            sbox_str = permute(sbox_str, per, 32)
+            
+            # XOR
+            result = xor(left, sbox_str)
+            left = result
+            
+            # Swap
+            if j != 15:
+                left, right = right, left
+        
+        # Combination + permutate
+        combine = left + right
+        plaintext_hex += bin2hex(permute(combine, final_perm, 64))
     
-    # Splitting
-    left = ct[0:32]
-    right = ct[32:64]
-    
-    for i in range(0, 16):
-        # Expansion D-box
-        right_expanded = permute(right, exp_d, 48)
-        
-        # XOR with round key
-        xor_x = xor(right_expanded, roundKeyBinaryReverse[i])
-        
-        # S-boxes
-        sbox_str = ""
-        for j in range(0, 8):
-            row = bin2dec(int(xor_x[j * 6] + xor_x[j * 6 + 5]))
-            col = bin2dec(int(xor_x[j * 6 + 1] + xor_x[j * 6 + 2] + xor_x[j * 6 + 3] + xor_x[j * 6 + 4]))
-            val = sbox[j][row][col]
-            sbox_str = sbox_str + dec2bin(val)
-        
-        # D-box
-        sbox_str = permute(sbox_str, per, 32)
-        
-        # XOR
-        result = xor(left, sbox_str)
-        left = result
-        
-        # Swap
-        if i != 15:
-            left, right = right, left
-    
-    # Combination + permutate
-    combine = left + right
-    plaintext = permute(combine, final_perm, 64)
+    plaintext = bytes.fromhex(plaintext_hex).decode('utf-8')
+    padding_len = ord(plaintext[-1])
+    plaintext = plaintext[:-padding_len]
     
     return plaintext
-
-#random 64 bit key for DES - will be provided to the user for decryption 
-def generate64BitKey():
-    random_bits = [random.choice(['0', '1']) for _ in range(64)]
-    random_key = ''.join(random_bits)
-    return random_key
-
-# --------------------------------------------------------------------------------------
-
 #----------------------END OF DES METHODS ----------------------------------
 
 if __name__ == '__main__':
