@@ -40,6 +40,7 @@ Decryptoid is built using the following technologies:
 - Typescript
 - React.js
 - React Router
+- Axios
 - Bcrypt
 - Python
 - Flask
