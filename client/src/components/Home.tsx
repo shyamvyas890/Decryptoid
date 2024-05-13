@@ -279,8 +279,6 @@ const HomeComponent = ()=>{
                 </>)}
                 
                 {isFile!==null && cipherNum===4 && encrypt!==null && (<>
-                    <label className={styles.label}>Note: Only 64-bit hexadecimal are accepted</label>
-                    <label className={styles.label}>Example: "4D6163626F6F6B73" ("Macbooks" in ASCII)</label>
                     <button className={`${styles.button} btn btn-primary`} type="submit">Submit</button>
                 </>)}
 
