@@ -567,25 +567,19 @@ def desHandler():
     if (encrypt): 
         if(cipherContents == "DES"):  
 
-
             desKey = generate64BitKey()
             hexadesKey = bin2hex(desKey)
             desKey = permute(desKey, keyp, 56)
-
+            
             # Split key 
             left = desKey[0:28]    
             right = desKey[28:56]  
             
             roundKeyBinary = []
             for i in range(0, 16):
-                # Shifting the bits by nth shifts by checking from shift table
                 left = shift_left(left, bit_rotation_table[i])
                 right = shift_left(right, bit_rotation_table[i])
-            
-                # Combination of left and right string
                 combine_str = left + right
-            
-                # Compression of key from 56 to 48 bits
                 round_key = permute(combine_str, key_compression, 48)
                 roundKeyBinary.append(round_key)
 
@@ -620,16 +614,13 @@ def desHandler():
     else: #DECRYPT
         if cipherContents == "DES":
             
-            # Convert the desKey from hexadecimal to binary
             desKey = request.form.get('desKey')
             desKey = hex2bin(desKey)
             desKey = permute(desKey, keyp, 56)
             
-            # Split the key
             left = desKey[0:28]
             right = desKey[28:56]
             
-            # Generate the round keys
             roundKeyBinary = []
             for i in range(0, 16):
                 left = shift_left(left, bit_rotation_table[i])
@@ -642,14 +633,7 @@ def desHandler():
             rkb_rev = roundKeyBinary[::-1]
             
             ciphertext = file_contents
-    
-            # Perform the decryption
             decrypted_binary_text = desDecrypt(ciphertext, rkb_rev)
-            
-            # Convert the decrypted binary text to ASCII
-            # 4D6163626F6F6B73
-            # 5BB45AFAF0EFAFE0
-
             plaintext = bin2hex(decrypted_binary_text)
             theEncryptedContent = plaintext
 
