@@ -78,7 +78,6 @@ CREATE TABLE DecryptoidUses (
 app.config['MYSQL_DATABASE_HOST'] = 'localhost' 
 app.config['MYSQL_DATABASE_USER'] = 'root' 
 app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
-app.config['MYSQL_DATABASE_DB'] = 'Decryptoid' 
 ```
 
 3. Modify the "secretKey" in [app.py](server/app.py) to be a complex, random, and unique string, which you should keep a secret and not tell anyone.
