@@ -573,11 +573,10 @@ def desHandler():
         return 'You have to include some content you want to encrypt', 400
 
     if not encrypt:
-        # Check if the provided ciphertext is a valid hexadecimal string
+        # decryption user input handling
         if not all(c in string.hexdigits for c in file_contents):
             return "Invalid ciphertext format. The ciphertext must be a hexadecimal string.", 400
 
-        # Check if the ciphertext length is a multiple of 16
         if len(file_contents) % 16 != 0:
             return "Invalid ciphertext length. The ciphertext length must be a multiple of 16.", 400
 
@@ -606,7 +605,6 @@ def desHandler():
             plaintext = file_contents
             cipher_text = desEncrypt(plaintext, roundKeyBinary)
             theEncryptedContent = cipher_text
-            
         try:
             UserId = None
             conn = db.connect() 
@@ -895,11 +893,9 @@ def desEncrypt(plaintext, roundKeyBinary):
         right = block_binary[32:64]
         
         for j in range(0, 16):
-            #  Expansion D-box: Expanding the 32 bits data into 48 bits
+            
             right_expanded = permute(right, exp_d, 48)
-            
             xor_x = xor(right_expanded, roundKeyBinary[j])
-            
             sbox_str = ""
             for k in range(0, 8):
                 row = bin2dec(int(xor_x[k * 6] + xor_x[k * 6 + 5]))
@@ -912,21 +908,19 @@ def desEncrypt(plaintext, roundKeyBinary):
             result = xor(left, sbox_str)
             left = result
             
-            # Swapper
             if j != 15:
                 left, right = right, left
         
-        # Combination 
         combine = left + right 
-        
-        # Final permutation: final rearranging of bits to get cipher text
         cipher_text += bin2hex(permute(combine, final_perm, 64))
     
     return cipher_text
 
-
+# Very similiar process as desENcrypt, but using reversed roundkey
 def desDecrypt(ciphertext, roundKeyBinaryReverse):
     plaintext_hex = ""
+
+    # divide plaintext into smaller blocks for DES block
     for i in range(0, len(ciphertext), 16):
         block = ciphertext[i:i+16]
         block_binary = hex2bin(block)
@@ -936,32 +930,24 @@ def desDecrypt(ciphertext, roundKeyBinaryReverse):
         right = block_binary[32:64]
         
         for j in range(0, 16):
-            # Expansion D-box
+ 
             right_expanded = permute(right, exp_d, 48)
-            
-            # XOR with round key
             xor_x = xor(right_expanded, roundKeyBinaryReverse[j])
-            
-            # S-boxes
             sbox_str = ""
             for k in range(0, 8):
                 row = bin2dec(int(xor_x[k * 6] + xor_x[k * 6 + 5]))
                 col = bin2dec(int(xor_x[k * 6 + 1] + xor_x[k * 6 + 2] + xor_x[k * 6 + 3] + xor_x[k * 6 + 4]))
                 val = sbox[k][row][col]
                 sbox_str = sbox_str + dec2bin(val)
-            
-            # D-box
+        
             sbox_str = permute(sbox_str, per, 32)
             
-            # XOR
             result = xor(left, sbox_str)
             left = result
-            
-            # Swap
+
             if j != 15:
                 left, right = right, left
-        
-        # Combination + permutate
+
         combine = left + right
         plaintext_hex += bin2hex(permute(combine, final_perm, 64))
     
@@ -970,7 +956,7 @@ def desDecrypt(ciphertext, roundKeyBinaryReverse):
     plaintext = plaintext[:-padding_len]
     
     return plaintext
-#----------------------END OF DES METHODS ----------------------------------
+#-----------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
