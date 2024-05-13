@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify, make_response
 from flaskext.mysql import MySQL
-import bcrypt, jwt, datetime, math, re
+import bcrypt, jwt, datetime, math, re, random, string
 from datetime import timezone
 from flask_cors import CORS
-import random
 
 
 
@@ -540,35 +539,56 @@ def rc4_decrypt(ciphertext, key):
 @app.route('/DES', methods=['POST'])
 def desHandler():
     file_contents=None
-    
+    desKey=""
     if('encrypt' not in request.form):
         return "Must include encryption information", 400
     encrypt = True if request.form['encrypt']=="true" else False
+
     if(not encrypt):
         if('desKey' not in request.form):
             return "Must include key for decryption", 400
         if(request.form['desKey']==""):
             return "Must include key for decryption", 400
+
         desKey = str(request.form['desKey'])
+
+        # Check if the provided key is a valid hexadecimal string
+        if not all(c in string.hexdigits for c in desKey):
+            return "Invalid key format. The key must be a hexadecimal string.", 400
+
+        # Check if the key length is correct
+        if len(desKey) != 16:
+            return "Invalid key length. The key must be 16 characters long.", 400
+
+    
     if('file' in request.files):
         uploaded_file = request.files['file']
         if(not uploaded_file.filename.lower().endswith('.txt')):
             return "Only txt files are accepted, sorry", 400
         file_contents = uploaded_file.read().decode('utf-8')
+        
     elif ('file' in request.form):
         file_contents= request.form['file']
     else:   
         return 'You have to include some content you want to encrypt', 400
-    cipherContents = "DES" 
-    theEncryptedContent = ""
-    desKey=""
-    
 
+    if not encrypt:
+        # Check if the provided ciphertext is a valid hexadecimal string
+        if not all(c in string.hexdigits for c in file_contents):
+            return "Invalid ciphertext format. The ciphertext must be a hexadecimal string.", 400
+
+        # Check if the ciphertext length is a multiple of 16
+        if len(file_contents) % 16 != 0:
+            return "Invalid ciphertext length. The ciphertext length must be a multiple of 16.", 400
+
+    cipherContents = "DES"
+    theEncryptedContent = ""
+    
     if (encrypt): 
         if(cipherContents == "DES"):  
 
             desKey = generate64BitKey()
-            hexadesKey = bin2hex(desKey)
+            hexadesKey = bin2hex(desKey) #show hex to user so they can copy/paste
             desKey = permute(desKey, keyp, 56)
             
             # Split key 
@@ -613,29 +633,32 @@ def desHandler():
             return "Internal Server Error", 500
     else: #DECRYPT
         if cipherContents == "DES":
+            # Catch exception: many runtime errors if keys are incorrectlty inputted 
+            try:
+                desKey = request.form.get('desKey')
+                desKey = hex2bin(desKey)
+                desKey = permute(desKey, keyp, 56)
+                
+                left = desKey[0:28]
+                right = desKey[28:56]
+                
+                roundKeyBinary = []
+                for i in range(0, 16):
+                    left = shift_left(left, bit_rotation_table[i])
+                    right = shift_left(right, bit_rotation_table[i])
+                    combine_str = left + right
+                    round_key = permute(combine_str, key_compression, 48)
+                    roundKeyBinary.append(round_key)
+                
+                # Reverse the round keys for decryption
+                rkb_rev = roundKeyBinary[::-1]
+                ciphertext = file_contents #user input 
+                decrypted_text = desDecrypt(ciphertext, rkb_rev)
+                theEncryptedContent = decrypted_text
+            except Exception as e:
+                print(e)
+                return "Decryption failed. Please check the provided key and ciphertext.", 400
             
-            desKey = request.form.get('desKey')
-            desKey = hex2bin(desKey)
-            desKey = permute(desKey, keyp, 56)
-            
-            left = desKey[0:28]
-            right = desKey[28:56]
-            
-            roundKeyBinary = []
-            for i in range(0, 16):
-                left = shift_left(left, bit_rotation_table[i])
-                right = shift_left(right, bit_rotation_table[i])
-                combine_str = left + right
-                round_key = permute(combine_str, key_compression, 48)
-                roundKeyBinary.append(round_key)
-            
-            # Reverse the round keys for decryption
-            rkb_rev = roundKeyBinary[::-1]
-            
-            ciphertext = file_contents
-            decrypted_text = desDecrypt(ciphertext, rkb_rev)
-            theEncryptedContent = decrypted_text
-
         try:
             UserId = None
             conn = db.connect()
@@ -855,10 +878,14 @@ def xor(a, b):
     return ans
 
 def desEncrypt(plaintext, roundKeyBinary):
+    
+    #padding 
     plaintext = pad_plaintext(plaintext)
     hex_plaintext = plaintext_to_hex(plaintext)
     
     cipher_text = ""
+
+    # divide plaintext into smaller blocks for DES block
     for i in range(0, len(hex_plaintext), 16):
         block = hex_plaintext[i:i+16]
         block_binary = hex2bin(block)
@@ -871,10 +898,8 @@ def desEncrypt(plaintext, roundKeyBinary):
             #  Expansion D-box: Expanding the 32 bits data into 48 bits
             right_expanded = permute(right, exp_d, 48)
             
-            # XOR RoundKey[j] and right_expanded
             xor_x = xor(right_expanded, roundKeyBinary[j])
             
-            # S-boxex: substituting the value from s-box table by calculating row and column
             sbox_str = ""
             for k in range(0, 8):
                 row = bin2dec(int(xor_x[k * 6] + xor_x[k * 6 + 5]))
@@ -882,10 +907,8 @@ def desEncrypt(plaintext, roundKeyBinary):
                 val = sbox[k][row][col]
                 sbox_str = sbox_str + dec2bin(val)
             
-            # Straight D-box: After substituting rearranging the bits
             sbox_str = permute(sbox_str, per, 32)
             
-            # XOR left and sbox_str
             result = xor(left, sbox_str)
             left = result
             
