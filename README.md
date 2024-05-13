@@ -18,7 +18,7 @@ Users can [register, login, and logout](#authentication) of the application at t
 Encrypt and Decrypt your secrets with either the substitution, double transposition, RC4, or DES [cipher](#ciphers).
 
 ### Input Validation
-Input is [validated] (#validation) on both the client and server side to make sure that it is formatted properly.
+Input is [validated](#validation) on both the client and server side to make sure that it is formatted properly.
 
 ### Security Features
 - **JSON Web Token Authentication:** JSON Web Tokens Are issued by the server to the client to as a means of authenticating the user. If the user isn't logged in, they are redirected to the login page.
