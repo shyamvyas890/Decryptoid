@@ -75,7 +75,7 @@ CREATE TABLE DecryptoidUses (
 ```
 2. In [app.py](server/app.py) , make sure to modify the MYSQL_DATABASE_HOST, MYSQL_DATABASE_USER, and MYSQL_DATABASE_PASSWORD to match your MySQL credentials:
 ```python
-app.config['MYSQL_DATABASE_HOST'] = 'localhost' #Change these 3 parameters
+app.config['MYSQL_DATABASE_HOST'] = 'localhost' # Change these 3 parameters
 app.config['MYSQL_DATABASE_USER'] = 'root' 
 app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
 ```
