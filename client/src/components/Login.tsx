@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../utils/AxiosWithCredentials.ts';
 import { hostname } from '../utils/utils.ts';
+import { useNavigate } from 'react-router-dom';
+
 const LoginComponent = () => {
+  const navigate = useNavigate();
   const [feedback, setFeedback]= useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null)
@@ -50,12 +53,19 @@ const LoginComponent = () => {
     setFeedback('');
   }
 
+  // reset button 
+  const handleRedirect = () => {
+    navigate('/');
+  };
+
+
   return (
     <div>
         {isLoggedIn?(
             <div>
             <h1>Welcome, {username}!</h1>
             <button onClick={handleLogout}>Logout</button>
+            <button onClick={handleRedirect}>Go to Homepage</button>
             </div>
 
         ) :isLoggedIn===false? (<div>
@@ -63,18 +73,20 @@ const LoginComponent = () => {
         <form onSubmit={handleLogin}>
             <label>
             Username:
+            <br />
             <input type="text" value={username===null? "": username} onChange={(e) => setUsername(e.target.value)} />
             </label>
             <br />
             <label>
             Password:
+            <br />
             <input type="password" name="passwordInput"/>
             </label>
             <br />
             <button type="submit">Login</button>
         </form>
         <div>Don't have an account? <Link to="/register">Register here!</Link></div>
-        {feedback && (feedback==="Your password is incorrect." || feedback==="This username does not exist." || feedback==="Error logging in.") && <p style={{color:'red'}}>{feedback}</p>}
+        {feedback && (feedback!=="Login Successful") && <p style={{color:'red'}}>{feedback}</p>}
         {feedback && feedback ==="Login Successful" && <p style={{color:'green'}}>{feedback}</p>}
         </div>):null
         }
